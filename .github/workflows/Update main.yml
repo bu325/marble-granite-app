@@ -1,55 +1,28 @@
 name: Build Android APK (Debug)
 
 on:
-  workflow_dispatch:
-  push:
-    branches: [ main, master ]
-  pull_request:
+  workflow_dispatch: # يتيح لك تشغيل الـworkflow يدويًا من زر Run workflow
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    container:
-      image: kivy/buildozer:stable
-      options: --privileged
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
-      - name: Cache Buildozer/Gradle/Android
-        uses: actions/cache@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          path: |
-            ~/.buildozer
-            ~/.gradle/caches
-            ~/.android
-          key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
-          restore-keys: |
-            buildozer-${{ runner.os }}-
+          python-version: '3.10'
 
-      - name: Show versions
-        run: |
-          python --version || true
-          buildozer --version || true
-
-      - name: Build Debug APK (first attempt)
-        id: first
-        continue-on-error: true
-        run: |
-          buildozer -v android debug
-
-      - name: Retry without matplotlib if failed
-        if: steps.first.outcome == 'failure'
-        run: |
-          cp buildozer.spec buildozer.spec.bak
-          sed -i 's/matplotlib,//; s/,matplotlib//; s/matplotlib//' buildozer.spec
-          echo "Retrying build without matplotlib..."
-          buildozer android clean
-          buildozer -v android debug
+      - name: Build with Buildozer (Docker)
+        uses: docker://kivy/buildozer:latest
+        with:
+          args: buildozer -v android debug
 
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: marble-granite-debug-apk
           path: bin/*.apk
-          if-no-files-found: error
