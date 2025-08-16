@@ -1,36 +1,55 @@
-name: Build Android APK
+name: Build Android APK (Debug)
 
 on:
   workflow_dispatch:
+  push:
+    branches: [ main, master ]
+  pull_request:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    container:
+      image: kivy/buildozer:stable
+      options: --privileged
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Set up JDK 11
-      uses: actions/setup-java@v3
-      with:
-        distribution: "temurin"
-        java-version: "11"
+      - name: Cache Buildozer/Gradle/Android
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.buildozer
+            ~/.gradle/caches
+            ~/.android
+          key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
+          restore-keys: |
+            buildozer-${{ runner.os }}-
 
-    - name: Install dependencies
-      run: sudo apt-get update && sudo apt-get install -y unzip zip python3-pip
+      - name: Show versions
+        run: |
+          python --version || true
+          buildozer --version || true
 
-    - name: Unzip project
-      run: unzip marble_granite_app_complete.zip -d project
+      - name: Build Debug APK (first attempt)
+        id: first
+        continue-on-error: true
+        run: |
+          buildozer -v android debug
 
-    - name: Build with Buildozer
-      run: |
-        pip install buildozer cython
-        cd project
-        buildozer android debug
+      - name: Retry without matplotlib if failed
+        if: steps.first.outcome == 'failure'
+        run: |
+          cp buildozer.spec buildozer.spec.bak
+          sed -i 's/matplotlib,//; s/,matplotlib//; s/matplotlib//' buildozer.spec
+          echo "Retrying build without matplotlib..."
+          buildozer android clean
+          buildozer -v android debug
 
-    - name: Upload APK
-      uses: actions/upload-artifact@v3
-      with:
-        name: marble-granite-app-apk
-        path: project/bin/*.apk
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: marble-granite-debug-apk
+          path: bin/*.apk
+          if-no-files-found: error
