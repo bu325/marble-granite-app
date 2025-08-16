@@ -1,0 +1,11 @@
+kivy==2.3.0
+kivymd
+arabic_reshaper
+python-bidi
+reportlab
+peewee
+requests
+plyer
+matplotlib
+pillow
+
