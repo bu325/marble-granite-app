@@ -1,28 +1,34 @@
-name: Build Android APK (Debug)
+name: Build Android APK (Release)
 
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04   # مهم، أفضل من 24.04 حالياً
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: false
+
+      - name: Fix Git permissions
+        run: git config --global --add safe.directory $GITHUB_WORKSPACE
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name: Build with Buildozer
+      - name: Build with Buildozer (Release)
         uses: ArtemSBulgakov/buildozer-action@v1.2.0
         with:
-          command: buildozer -v android debug
+          command: buildozer -v android release
 
-      - name: Upload APK artifact
+      - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: marble-granite-debug-apk
-          path: bin/*.apk
+          name: marble-granite-release-apk
+          path: bin/*-release.apk
