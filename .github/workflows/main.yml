@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04   # مهم، أفضل من 24.04 حالياً
 
     steps:
       - name: Checkout
@@ -16,10 +16,10 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Build with Buildozer (Docker)
-        uses: docker://kivy/buildozer:latest
+      - name: Build with Buildozer
+        uses: ArtemSBulgakov/buildozer-action@v1.2.0
         with:
-          args: buildozer -v android debug
+          command: buildozer -v android debug
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
