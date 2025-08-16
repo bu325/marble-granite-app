@@ -1,0 +1,57 @@
+name: Build Android APK (Release Signed)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    container:
+      image: kivy/buildozer:stable
+      options: --privileged
+    env:
+      KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Buildozer/Gradle/Android
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.buildozer
+            ~/.gradle/caches
+            ~/.android
+          key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
+          restore-keys: |
+            buildozer-${{ runner.os }}-
+
+      - name: Create keystore from BASE64
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
+          ls -l release.keystore
+
+      - name: Inject signing config into buildozer.spec (temp)
+        run: |
+          cp buildozer.spec buildozer.release.spec
+          echo 'android.release_keystore = release.keystore' >> buildozer.release.spec
+          echo "android.release_keystore_password = $KEYSTORE_PASSWORD" >> buildozer.release.spec
+          echo "android.release_keyalias = $KEY_ALIAS" >> buildozer.release.spec
+          echo "android.release_keyalias_password = $KEY_PASSWORD" >> buildozer.release.spec
+          echo "Using spec:"
+          tail -n +1 buildozer.release.spec
+
+      - name: Build Release APK
+        run: |
+          buildozer -v -f buildozer.release.spec android release
+
+      - name: Upload signed Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: marble-granite-release-apk
+          path: bin/*.apk
+          if-no-files-found: error
